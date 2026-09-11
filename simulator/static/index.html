@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TCP SYN Flood Telemetry & Mitigation Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-title">TCP SYN Flood Analysis Console</span>
+      <span class="brand-crumb">/ Topic 06: DoS & Mitigation</span>
+    </div>
+    <div class="header-meta">
+      <span class="user-tag">Shahriar (2005093) &bull; Hamim (1705083)</span>
+      <div id="status-indicator" class="status-indicator">
+        <span class="status-dot"></span>
+        <span id="status-text">Connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-container">
+
+        <section class="kpi-row">
+      <div class="kpi-card">
+        <span class="kpi-label">SYN Backlog Occupancy</span>
+        <span id="kpi-backlog" class="kpi-val">0 / 16</span>
+        <span id="kpi-backlog-sub" class="kpi-sub">0% queue saturation</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Client Handshake Latency</span>
+        <span id="kpi-latency" class="kpi-val">0.0 ms</span>
+        <span id="kpi-latency-sub" class="kpi-sub">100% availability (OK)</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Injected Attack Traffic</span>
+        <span id="kpi-rate" class="kpi-val">0 pps</span>
+        <span class="kpi-sub">Layer 4 SYN Segments</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Active Defensive Layer</span>
+        <span id="kpi-defense" class="kpi-val" style="font-size: 13px; font-family: var(--font-mono); margin-top: 4px;">SYN Cookies: OFF</span>
+        <span class="kpi-sub">Kernel state bypass posture</span>
+      </div>
+    </section>
+
+        <section class="grid-2col">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Legitimate Client RTT Latency</span>
+          <span style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono);">Timeout Threshold: 500 ms</span>
+        </div>
+        <div class="panel-body">
+          <div class="chart-wrap">
+            <canvas id="latency-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Testbed Network Topology</span>
+          <span style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono);">Subnet: 192.168.10.0/24</span>
+        </div>
+        <div class="panel-body" style="padding: 8px;">
+          <svg class="topology-svg" viewBox="0 0 420 200">
+                        <line x1="80" y1="60" x2="210" y2="100" class="net-link" />
+            <line x1="80" y1="140" x2="210" y2="100" class="net-link" />
+            <line x1="210" y1="100" x2="340" y2="100" class="net-link" />
+
+                        <circle cx="210" cy="100" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.5" />
+            <text x="210" y="104" font-size="8.5" fill="#94a3b8" text-anchor="middle" font-family="ui-monospace">br-0</text>
+
+                        <g class="net-node attacker" transform="translate(15, 30)">
+              <rect width="130" height="55" />
+              <text x="65" y="24" class="net-label">Attacker Node</text>
+              <text x="65" y="38" class="net-ip">192.168.10.2:raw</text>
+              <text id="topo-attacker-sub" x="65" y="49" font-size="9" fill="#f43f5e" text-anchor="middle" font-family="ui-monospace">IDLE</text>
+            </g>
+
+                        <g class="net-node client" transform="translate(15, 115)">
+              <rect width="130" height="55" />
+              <text x="65" y="24" class="net-label">Legitimate Client</text>
+              <text x="65" y="38" class="net-ip">192.168.10.3:prober</text>
+              <text id="topo-client-sub" x="65" y="49" font-size="9" fill="#10b981" text-anchor="middle" font-family="ui-monospace">0.12ms (OK)</text>
+            </g>
+
+                        <g class="net-node victim" transform="translate(275, 72.5)">
+              <rect width="130" height="55" />
+              <text x="65" y="24" class="net-label">Victim Web Server</text>
+              <text x="65" y="38" class="net-ip">192.168.10.10:8080</text>
+              <text id="topo-victim-sub" x="65" y="49" font-size="9" fill="#38bdf8" text-anchor="middle" font-family="ui-monospace">0/16 SYN_RECV</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+        <section class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Operational Controls & Defensive Countermeasures</span>
+      </div>
+      <div class="panel-body">
+        <div class="control-grid">
+          
+                    <div class="control-item">
+            <div class="control-desc">
+              <span class="control-title">SYN Flood Injection</span>
+              <span class="control-note">Emits raw spoofed SYN packets</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <button id="btn-start" class="btn btn-danger">Start Attack</button>
+              <button id="btn-stop" class="btn btn-secondary">Stop</button>
+            </div>
+          </div>
+
+                    <div class="control-item">
+            <div class="control-desc">
+              <span class="control-title">Emission Target Rate</span>
+              <span id="val-rate" class="control-note" style="font-family: var(--font-mono); color: var(--text-main);">5,000 pps</span>
+            </div>
+            <input type="range" id="slider-rate" min="500" max="25000" step="500" value="5000" style="width: 140px;">
+          </div>
+
+                    <div class="control-item">
+            <div class="control-desc">
+              <span class="control-title">Stateless TCP SYN Cookies</span>
+              <span class="control-note">Eliminates half-open state allocation (tcp_syncookies)</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="sw-syncookies">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+                    <div class="control-item">
+            <div class="control-desc">
+              <span class="control-title">Netfilter Ingress Rate Limiting</span>
+              <span class="control-note">Drops excess SYNs via iptables token bucket</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="sw-iptables">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+                    <div class="control-item" style="grid-column: span 2;">
+            <div class="control-desc">
+              <span class="control-title">Socket SYN Backlog Limit</span>
+              <span class="control-note">Maximum pending connections in SYN_RECV before drop</span>
+            </div>
+            <select id="sel-backlog">
+              <option value="16" selected>16 entries (Default)</option>
+              <option value="64">64 entries</option>
+              <option value="128">128 entries</option>
+              <option value="1024">1,024 entries</option>
+            </select>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+        <section class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Telemetry & Event Log</span>
+      </div>
+      <div class="panel-body" style="padding: 0; max-height: 180px; overflow-y: auto;">
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th style="width: 90px;">Time</th>
+              <th style="width: 80px;">Source</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody id="log-tbody">
+            <tr>
+              <td>--:--:--</td>
+              <td><span class="log-tag SYS">SYS</span></td>
+              <td>Awaiting engine telemetry...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

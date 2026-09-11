@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C binaries & object files
+*.o
+syn_flood
+
+# Submission zip archives & sample reports
+*.zip
+sample_reports/
+
+# TeX intermediate build files
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.xdv
+
+# System & editor files
+.DS_Store
+*.swp
+*~
+
