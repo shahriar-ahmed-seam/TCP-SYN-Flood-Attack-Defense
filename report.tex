@@ -78,13 +78,22 @@
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
-% Title Formatting & Continuous Flow
-\titleclass{\chapter}{straight}
+% Title Formatting & Chapter Hierarchy
 \titleformat{\chapter}[hang]
-  {\normalfont\Large\bfseries\color{buetblue}}{\chaptertitlename\ \thechapter:}{8pt}{\Large}
-\titlespacing*{\chapter}{0pt}{20pt plus 4pt minus 2pt}{10pt plus 2pt minus 2pt}
-\titlespacing*{\section}{0pt}{14pt plus 2pt minus 2pt}{5pt}
-\titlespacing*{\subsection}{0pt}{10pt plus 2pt minus 2pt}{3pt}
+  {\normalfont\huge\bfseries\color{buetblue}\raggedright}
+  {\chaptertitlename\ \thechapter:\ }{10pt}
+  {\huge}[\vspace{6pt}{\color{buetblue!40}\hrule height 1.5pt}\vspace{10pt}]
+\titlespacing*{\chapter}{0pt}{15pt}{22pt}
+
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{buetblue}}
+  {\thesection}{8pt}{}
+\titlespacing*{\section}{0pt}{18pt plus 3pt minus 2pt}{6pt}
+
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{buetblue!90!black}}
+  {\thesubsection}{6pt}{}
+\titlespacing*{\subsection}{0pt}{14pt plus 2pt minus 2pt}{4pt}
 
 % Table formatting helper
 \newcolumntype{Y}{>{\centering\arraybackslash}X}
@@ -140,12 +149,13 @@ We evaluated this implementation inside an isolated virtual network testbed to o
 \end{abstract}
 
 % Front matter lists
-\tableofcontents
-\vspace{0.8cm}
 \begingroup
 \let\clearpage\relax
+\setlength{\parskip}{0pt}
+\tableofcontents
+\vspace{0.25cm}
 \listoffigures
-\vspace{0.8cm}
+\vspace{0.25cm}
 \listoftables
 \endgroup
 \clearpage
@@ -203,7 +213,7 @@ Under RFC 793, TCP establishes a bidirectional byte stream between two endpoints
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.76\textwidth]{figures/timing_diagrams.png}
+    \includegraphics[width=0.70\textwidth]{figures/timing_diagrams.png}
     \caption{Protocol Sequence Analysis: (A) Baseline Three-Way Handshake versus (B) SYN Flood Denial of Service Saturation.}
     \label{fig:timing_diagrams}
 \end{figure}
@@ -224,18 +234,13 @@ The core weakness exploited by a SYN flood is an asymmetry in how endpoints comm
 Because the server commits substantial kernel state for every incoming $SYN$ while the sender commits none, an attacker transmitting moderate volumes of requests can rapidly exhaust the server's connection tracking capacity.
 
 \section{The Linux Half-Open Connection Architecture}
-In the Linux kernel network stack (Figure~\ref{fig:network_topology}), connection requests are processed through two distinct queues:
+In the Linux kernel network stack, connection requests are processed through two distinct queues:
 \begin{enumerate}
     \item \textbf{The SYN Backlog (Half-Open Queue):} Holds connection requests in the \texttt{SYN\_RCVD} state awaiting client completion. The capacity of this queue is bounded by the system setting \texttt{net.ipv4.tcp\_max\_syn\_backlog} and the backlog argument provided to the \texttt{listen()} system call.
     \item \textbf{The Accept Queue (Established Queue):} Holds fully established sockets that have completed the three-way handshake and are waiting to be retrieved by the application via \texttt{accept()}. This queue size is bounded by \texttt{net.core.somaxconn}.
 \end{enumerate}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.76\textwidth]{figures/network_topology.png}
-    \caption{Architectural Block Diagram of the Isolated Virtual Testbed Network.}
-    \label{fig:network_topology}
-\end{figure}
+
 
 \section{IP Address Spoofing Mechanics}
 If an attacker sends flood traffic using their authentic IP address, the victim's $SYN\text{-}ACK$ responses will return to the attacker's host. Because the host OS kernel has no record of initiating those connections through standard user-space sockets, it automatically emits a TCP Reset ($RST$) packet, clearing the victim's backlog slot immediately.
@@ -252,7 +257,14 @@ By generating pseudo-random source addresses across inactive or non-responsive s
 \chapter{Network Topology \& Environment Design}
 
 \section{Testbed Architecture}
-To prevent spoofed IP packets from escaping onto university or local network infrastructure, the experimental testbed was deployed entirely inside an isolated virtual network environment using Linux Network Namespaces and virtual Ethernet pairs (\texttt{veth}). The testbed comprises three distinct nodes connected through a virtual Layer 2 bridge on subnet \texttt{192.168.10.0/24}:
+To prevent spoofed IP packets from escaping onto university or local network infrastructure, the experimental testbed was deployed entirely inside an isolated virtual network environment using Linux Network Namespaces and virtual Ethernet pairs (\texttt{veth}). The testbed comprises three distinct nodes connected through a virtual Layer 2 bridge on subnet \texttt{192.168.10.0/24}, as illustrated in Figure~\ref{fig:network_topology}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{figures/network_topology.png}
+    \caption{Architectural Block Diagram of the Isolated Virtual Testbed Network.}
+    \label{fig:network_topology}
+\end{figure}
 
 \begin{table}[H]
     \centering
@@ -353,7 +365,7 @@ Because \texttt{tcp\_syncookies=0}, the kernel drops the packet without allocati
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.82\textwidth]{figures/packet_structure.png}
+    \includegraphics[width=0.75\textwidth]{figures/packet_structure.png}
     \caption{Bitwise Header Layout of Injected IPv4 and TCP Packets.}
     \label{fig:packet_structure}
 \end{figure}
@@ -370,6 +382,8 @@ The Layer 2 encapsulation consists of a standard 14-byte Ethernet II header:
 The custom IPv4 header occupies 20 bytes (no IP options):
 \begin{table}[H]
     \centering
+    \small
+    \renewcommand{\arraystretch}{0.88}
     \caption{Bitwise IPv4 Header Field Specifications}
     \label{tab:ipv4_fields}
     \begin{tabularx}{\textwidth}{@{}l c c >{\raggedright\arraybackslash}X@{}}
@@ -395,6 +409,8 @@ The custom IPv4 header occupies 20 bytes (no IP options):
 The crafted TCP header occupies 20 bytes without options:
 \begin{table}[H]
     \centering
+    \small
+    \renewcommand{\arraystretch}{0.88}
     \caption{Bitwise TCP Header Field Specifications}
     \label{tab:tcp_fields}
     \begin{tabularx}{\textwidth}{@{}l c c >{\raggedright\arraybackslash}X@{}}
@@ -448,7 +464,7 @@ Our custom tool \texttt{syn\_flood.c} is designed for maximum throughput and low
 \section{Core Algorithm Breakdown}
 The core logic computes the RFC 1071 Internet Checksum across the pseudo-header and serialized TCP header:
 
-\begin{lstlisting}[style=customc, caption={Core RFC 1071 Checksum \& Pseudo-Header Calculation Routine}]
+\begin{lstlisting}[style=customc, basicstyle=\ttfamily\scriptsize, caption={Core RFC 1071 Checksum \& Pseudo-Header Calculation Routine}]
 uint16_t calculate_checksum(uint16_t *buf, int nbytes) {
     uint32_t sum = 0;
     uint16_t oddbyte = 0;
@@ -481,10 +497,7 @@ uint16_t compute_tcp_checksum(struct iphdr *iph, struct tcphdr *tcph) {
 \end{lstlisting}
 
 \section{Source Code Repository Access}
-Per course submission standards, the complete source code, automated execution scripts, and network test harnesses are maintained in the project GitHub repository:
-\begin{center}
-    \textbf{Project Repository:} \url{https://github.com/shahriar-ahmed-seam/TCP-SYN-Flood-Attack-Defense}
-\end{center}
+Per course submission standards, the complete source code, execution scripts, and test harnesses are hosted in the project GitHub repository: \url{https://github.com/shahriar-ahmed-seam/TCP-SYN-Flood-Attack-Defense}.
 
 % =========================================================================
 % CHAPTER 7: EMPIRICAL ATTACK DEMONSTRATION
@@ -649,6 +662,8 @@ This project was executed collaboratively by our two-member team. Project respon
 
 \begin{table}[H]
     \centering
+    \small
+    \renewcommand{\arraystretch}{0.88}
     \caption{Group Technical Modules and Work Distribution}
     \label{tab:contributions}
     \begin{tabularx}{\textwidth}{@{}p{4.2cm} p{2.8cm} >{\raggedright\arraybackslash}X@{}}
