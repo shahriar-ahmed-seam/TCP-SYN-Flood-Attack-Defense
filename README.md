@@ -20,7 +20,7 @@ In strict conformance with course policy, zero third-party attack frameworks (`h
 ### Directory & File Structure
 ```
 .
-├── report.pdf              # Compiled 19-page comprehensive academic design report
+├── report.pdf              # Compiled 23-page comprehensive academic design report
 ├── report.tex              # Complete LaTeX source code for the design report
 ├── compile_report.py       # Python compilation script (tectonic engine)
 ├── syn_flood.c             # Custom standalone C raw socket attack engine
@@ -62,10 +62,10 @@ gcc -O2 -Wall syn_flood.c -o syn_flood
 
 #### 2. Execute the Standalone Attack Engine
 ```bash
-sudo ./syn_flood <Target_IP> <Target_Port> [Number_of_Packets] [Sleep_Microseconds]
+sudo ./syn_flood <Target_IP> <Target_Port> [Duration_Seconds]
 
-# Example: Flood local port 8080 unthrottled
-sudo ./syn_flood 127.0.0.1 8080 10000 0
+# Example: Flood local port 8080 for 10 seconds (or 0 for continuous)
+sudo ./syn_flood 127.0.0.1 8080 10
 ```
 
 #### 3. Run the Automated Live Experiment Harness
