@@ -8,12 +8,26 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 BASE_STYLE = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+    }
+    ::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        background: transparent !important;
+    }
     body {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background: #ffffff;
         color: #1e293b;
-        padding: 24px;
         -webkit-font-smoothing: antialiased;
     }
     .mono { font-family: 'JetBrains Mono', monospace; }
@@ -29,6 +43,7 @@ def render_html_to_png(html_content, output_png, width, height):
         "google-chrome",
         "--headless",
         "--disable-gpu",
+        "--hide-scrollbars",
         f"--window-size={width},{height}",
         "--force-device-scale-factor=2",
         f"--screenshot={output_png}",
@@ -51,26 +66,28 @@ def generate_timing_diagrams():
 <meta charset="utf-8">
 {BASE_STYLE}
 <style>
-    body {{ padding: 20px; width: 1200px; height: 720px; }}
+    body {{ padding: 18px 20px; width: 1200px; height: 740px; overflow: hidden !important; }}
     .container {{
         display: grid;
         grid-template-columns: 1fr 1.2fr;
-        gap: 24px;
+        gap: 20px;
         height: 100%;
+        overflow: hidden;
     }}
     .panel {{
         border: 2px solid #e2e8f0;
-        border-radius: 16px;
-        padding: 24px;
+        border-radius: 14px;
+        padding: 16px 18px;
         background: #fafafa;
         position: relative;
+        overflow: hidden;
     }}
     .panel.left {{ border-color: #3b82f6; }}
     .panel.right {{ border-color: #ef4444; }}
     .title {{
-        font-size: 18px;
+        font-size: 16.5px;
         font-weight: 700;
-        margin-bottom: 20px;
+        margin-bottom: 12px;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -89,7 +106,7 @@ def generate_timing_diagrams():
 
     svg {{
         width: 100%;
-        height: 590px;
+        height: 560px;
     }}
     .actor-line {{ stroke: #94a3b8; stroke-width: 2; stroke-dasharray: 4,4; }}
     .actor-box {{ fill: #ffffff; stroke-width: 1.5; rx: 8px; }}
@@ -257,7 +274,7 @@ def generate_timing_diagrams():
 </html>
 """
     out_png = os.path.join(OUTPUT_DIR, "timing_diagrams.png")
-    render_html_to_png(html, out_png, 1200, 720)
+    render_html_to_png(html, out_png, 1200, 740)
 
 # -------------------------------------------------------------------------
 # 2. SYN COOKIE ARCHITECTURE
@@ -269,7 +286,7 @@ def generate_syn_cookie_architecture():
 <meta charset="utf-8">
 {BASE_STYLE}
 <style>
-    body {{ padding: 24px; width: 1200px; height: 620px; }}
+    body {{ padding: 20px 24px; width: 1200px; height: 630px; overflow: hidden !important; }}
     .title {{
         font-size: 20px;
         font-weight: 700;
@@ -452,7 +469,7 @@ def generate_syn_cookie_architecture():
 </html>
 """
     out_png = os.path.join(OUTPUT_DIR, "syn_cookie_architecture.png")
-    render_html_to_png(html, out_png, 1200, 620)
+    render_html_to_png(html, out_png, 1200, 630)
 
 # -------------------------------------------------------------------------
 # 3. NETWORK TOPOLOGY
@@ -464,18 +481,19 @@ def generate_network_topology():
 <meta charset="utf-8">
 {BASE_STYLE}
 <style>
-    body {{ padding: 24px; width: 1200px; height: 640px; }}
+    body {{ padding: 16px 20px; width: 1200px; height: 660px; overflow: hidden !important; }}
     .title {{
-        font-size: 20px;
+        font-size: 19px;
         font-weight: 700;
         color: #0f172a;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
         text-align: center;
     }}
     .testbed-box {{
         border: 2px dashed #94a3b8;
-        border-radius: 16px;
-        padding: 24px;
+        border-radius: 14px;
+        padding: 16px 18px;
+        margin-top: 14px;
         background: #f8fafc;
         position: relative;
     }}
@@ -493,7 +511,7 @@ def generate_network_topology():
     }}
     svg {{
         width: 100%;
-        height: 520px;
+        height: 490px;
     }}
     .bridge-box {{
         fill: #1e293b;
@@ -613,7 +631,7 @@ def generate_network_topology():
 </html>
 """
     out_png = os.path.join(OUTPUT_DIR, "network_topology.png")
-    render_html_to_png(html, out_png, 1200, 640)
+    render_html_to_png(html, out_png, 1200, 660)
 
 # -------------------------------------------------------------------------
 # 4. PACKET STRUCTURE
@@ -625,19 +643,19 @@ def generate_packet_structure():
 <meta charset="utf-8">
 {BASE_STYLE}
 <style>
-    body {{ padding: 24px; width: 1200px; height: 720px; }}
+    body {{ padding: 18px 24px; width: 1200px; height: 750px; overflow: hidden !important; }}
     .title {{
         font-size: 20px;
         font-weight: 700;
         color: #0f172a;
-        margin-bottom: 20px;
+        margin-bottom: 14px;
         text-align: center;
     }}
     .header-card {{
         border-radius: 12px;
         border: 2px solid #cbd5e1;
         overflow: hidden;
-        margin-bottom: 24px;
+        margin-bottom: 16px;
     }}
     .header-top {{
         padding: 10px 16px;
@@ -747,33 +765,61 @@ def generate_packet_structure():
             </tr>
             <tr>
                 <td colspan="2">
-                    <div class="f-name">SEQUENCE NUMBER: rand() [32 Bits]</div>
-                    <div class="f-val">Client Initial Sequence Number (ISN_c)</div>
+                    <div class="f-name">Sequence Number (seq)</div>
+                    <div class="f-bits">32 bits &bull; Random Initial Sequence Number</div>
+                    <div class="f-val">rand() (Unpredictable RFC 793 ISN)</div>
                 </td>
             </tr>
             <tr>
                 <td colspan="2">
-                    <div class="f-name">ACKNOWLEDGMENT NUMBER: 0 (Nullified)</div>
-                    <div class="f-val">Unacknowledged Segment (SYN=1, ACK=0)</div>
+                    <div class="f-name">Acknowledgment Number (ack_seq)</div>
+                    <div class="f-bits">32 bits &bull; Initial SYN Handshake</div>
+                    <div class="f-val">0 (No Previous State Exists)</div>
                 </td>
             </tr>
             <tr>
                 <td>
                     <div style="display: flex; justify-content: space-around;">
-                        <div><div class="f-name">Data Offset</div><div class="f-val">5 (20B)</div></div>
-                        <div><div class="f-name">Reserved</div><div class="f-val">0</div></div>
-                        <div class="hl-red" style="padding: 2px 8px; border-radius: 4px;"><div class="f-name">FLAGS</div><div class="f-val" style="font-weight:700;">SYN = 1</div></div>
+                        <div>
+                            <div class="f-name">Data Offset</div>
+                            <div class="f-bits">4 bits</div>
+                            <div class="f-val">5 (20 B)</div>
+                        </div>
+                        <div>
+                            <div class="f-name">Reserved</div>
+                            <div class="f-bits">4 bits</div>
+                            <div class="f-val">0</div>
+                        </div>
                     </div>
                 </td>
                 <td>
-                    <div class="f-name">WINDOW SIZE: 64240 Bytes</div>
-                    <div class="f-val">Advertised Flow Control Buffer</div>
+                    <div class="f-name">Control Flags (6 bits active)</div>
+                    <div class="flag-group" style="margin-top: 4px;">
+                        <span class="flag-badge flag-off">URG:0</span>
+                        <span class="flag-badge flag-off">ACK:0</span>
+                        <span class="flag-badge flag-off">PSH:0</span>
+                        <span class="flag-badge flag-off">RST:0</span>
+                        <span class="flag-badge flag-on">SYN:1</span>
+                        <span class="flag-badge flag-off">FIN:0</span>
+                    </div>
                 </td>
             </tr>
             <tr>
-                <td class="hl-green">
-                    <div class="f-name">TCP CHECKSUM (RFC 793 Pseudo-Header)</div>
-                    <div class="f-val">Computed over SrcIP + DstIP + Protocol + Length + TCP Header</div>
+                <td>
+                    <div class="f-name">Window Size</div>
+                    <div class="f-bits">16 bits</div>
+                    <div class="f-val">htons(5840) (Linux Default Advertised)</div>
+                </td>
+                <td>
+                    <div class="f-name">Checksum</div>
+                    <div class="f-bits">16 bits</div>
+                    <div class="f-val" style="color: #b91c1c;">csum(pseudo_header + tcphdr)</div>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="f-name">Options & Padding</div>
+                    <div class="f-val">None (Minimum 20 Bytes Header)</div>
                 </td>
                 <td>
                     <div class="f-name">Urgent Pointer</div>
@@ -786,7 +832,7 @@ def generate_packet_structure():
 </html>
 """
     out_png = os.path.join(OUTPUT_DIR, "packet_structure.png")
-    render_html_to_png(html, out_png, 1200, 720)
+    render_html_to_png(html, out_png, 1200, 750)
 
 # -------------------------------------------------------------------------
 # 5. EMPIRICAL RESULTS
@@ -798,7 +844,7 @@ def generate_empirical_results():
 <meta charset="utf-8">
 {BASE_STYLE}
 <style>
-    body {{ padding: 24px; width: 1200px; height: 600px; }}
+    body {{ padding: 20px 24px; width: 1200px; height: 610px; overflow: hidden !important; }}
     .title {{
         font-size: 20px;
         font-weight: 700;
@@ -931,7 +977,7 @@ def generate_empirical_results():
 </html>
 """
     out_png = os.path.join(OUTPUT_DIR, "empirical_results.png")
-    render_html_to_png(html, out_png, 1200, 600)
+    render_html_to_png(html, out_png, 1200, 610)
 
 if __name__ == "__main__":
     print("[*] Generating clean preview figures into:", OUTPUT_DIR)

@@ -80,20 +80,20 @@
 
 % Title Formatting & Chapter Hierarchy
 \titleformat{\chapter}[hang]
-  {\normalfont\huge\bfseries\color{buetblue}\raggedright}
-  {\chaptertitlename\ \thechapter:\ }{10pt}
-  {\huge}[\vspace{6pt}{\color{buetblue!40}\hrule height 1.5pt}\vspace{10pt}]
-\titlespacing*{\chapter}{0pt}{15pt}{22pt}
+  {\normalfont\fontsize{15}{18}\selectfont\bfseries\color{buetblue}\raggedright}
+  {\chaptertitlename\ \thechapter:\ }{6pt}
+  {\fontsize{15}{18}\selectfont}[\vspace{6pt}{\color{buetblue!40}\hrule height 1.5pt}\vspace{12pt}]
+\titlespacing*{\chapter}{0pt}{15pt}{20pt}
 
 \titleformat{\section}
-  {\normalfont\Large\bfseries\color{buetblue}}
+  {\normalfont\large\bfseries\color{buetblue}}
   {\thesection}{8pt}{}
-\titlespacing*{\section}{0pt}{18pt plus 3pt minus 2pt}{6pt}
+\titlespacing*{\section}{0pt}{16pt plus 3pt minus 2pt}{6pt}
 
 \titleformat{\subsection}
-  {\normalfont\large\bfseries\color{buetblue!90!black}}
+  {\normalfont\normalsize\bfseries\color{buetblue!90!black}}
   {\thesubsection}{6pt}{}
-\titlespacing*{\subsection}{0pt}{14pt plus 2pt minus 2pt}{4pt}
+\titlespacing*{\subsection}{0pt}{12pt plus 2pt minus 2pt}{4pt}
 
 % Table formatting helper
 \newcolumntype{Y}{>{\centering\arraybackslash}X}
@@ -141,9 +141,9 @@
 \pagenumbering{roman}
 
 \begin{abstract}
-The Transmission Control Protocol (TCP, RFC 793) provides reliable, ordered data delivery across the Internet. To synchronize sequence numbers and establish communication parameters, TCP relies on a three-way handshake (SYN $\to$ SYN-ACK $\to$ ACK). This design introduces an asymmetry in resource allocation: an initiating client commits negligible local memory when transmitting a 40-byte SYN packet, whereas the receiving server must allocate kernel memory for a Transmission Control Block (TCB, tracked as \texttt{request\_sock} in Linux) and maintain an entry in its bounded SYN backlog queue.
+The Transmission Control Protocol (TCP, RFC 793 \cite{rfc793}) provides reliable, ordered data delivery across the Internet. To synchronize sequence numbers and establish communication parameters, TCP relies on a three-way handshake (SYN $\to$ SYN-ACK $\to$ ACK). This design introduces an asymmetry in resource allocation: an initiating client commits negligible local memory when transmitting a 40-byte SYN packet, whereas the receiving server must allocate kernel memory for a Transmission Control Block (TCB, tracked as \texttt{request\_sock} in the Linux kernel \cite{linux_kernel}) and maintain an entry in its bounded SYN backlog queue.
 
-In this project, we analyze, implement, and experimentally evaluate a \textbf{TCP SYN Flood Denial of Service (DoS) attack tool} written from scratch in standard C using low-level POSIX raw sockets (\texttt{SOCK\_RAW} with \texttt{IP\_HDRINCL}). In compliance with course policies, we did not use any third-party attack frameworks or packet-crafting libraries. We manually synthesized Layer 3 (IPv4) headers and Layer 4 (TCP) headers, implemented the RFC 1071 16-bit one's complement checksum routine with TCP pseudo-headers, and built a packet injection loop capable of delivering over $388,000$ packets per second.
+In this project, we analyze, implement, and experimentally evaluate a \textbf{TCP SYN Flood Denial of Service (DoS) attack tool} written from scratch in standard C using low-level POSIX raw sockets (\texttt{SOCK\_RAW} with \texttt{IP\_HDRINCL}). In compliance with course policies, we did not use any third-party attack frameworks or packet-crafting libraries. We manually synthesized Layer 3 (IPv4) headers and Layer 4 (TCP) headers, implemented the RFC 1071 \cite{rfc1071} 16-bit one's complement checksum routine with TCP pseudo-headers, and built a packet injection loop capable of delivering over $388,000$ packets per second.
 
 We evaluated this implementation inside an isolated virtual network testbed to observe server degradation and test countermeasures. Under default conditions with defenses disabled (\texttt{tcp\_syncookies=0}), the attack exhausted the server's backlog queue within $25.6\text{ ms}$, driving legitimate connection timeout failure rates to $100\%$. To address the project bonus requirement, we implemented and evaluated four defensive layers: (1) Cryptographic Stateless TCP SYN Cookies (\texttt{tcp\_syncookies=1}), which removed server-side state allocation for initial requests and restored legitimate client success rates to $90\text{--}100\%$ during an active flood; (2) Ingress Firewall Rate Limiting using Netfilter \texttt{iptables}, which dropped $84.7\%$ of attack packets before they reached the socket queue; (3) Stateful Netfilter \texttt{SYNPROXY} connection handling; and (4) Kernel Parameter Hardening via \texttt{sysctl}. All experimental claims are supported by captured terminal traces, socket queue telemetry (\texttt{ss}, \texttt{netstat}), and measured client latency data.
 \end{abstract}
@@ -168,7 +168,7 @@ We evaluated this implementation inside an isolated virtual network testbed to o
 \chapter{Introduction}
 
 \section{Background and Motivation}
-Most network services rely on the Transmission Control Protocol (TCP) to deliver reliable, sequenced, and error-checked byte streams over packet-switched networks. Common network applications, including web servers (HTTP/HTTPS), remote shells (SSH), database engines, and backend microservices, establish transport sessions through the standard three-way handshake defined in RFC 793.
+Most network services rely on the Transmission Control Protocol (TCP) to deliver reliable, sequenced, and error-checked byte streams over packet-switched networks. Common network applications, including web servers (HTTP/HTTPS), remote shells (SSH), database engines, and backend microservices, establish transport sessions through the standard three-way handshake defined in RFC 793 \cite{rfc793}.
 
 Because connection establishment requires the server to maintain state before the client has verified its reachability, TCP services remain vulnerable to transport-layer Denial of Service (DoS) attacks. Among these, the \textbf{TCP SYN Flood} remains one of the oldest and most persistent attack vectors. By exploiting the server's obligation to reserve memory before the handshake completes, an attacker with modest network resources can exhaust connection tables and render high-capacity servers inaccessible to legitimate users.
 
@@ -178,10 +178,10 @@ When a TCP server receives a synchronization segment ($SYN$), it creates an inte
 The server retains these half-open connection records in a bounded queue—known as the SYN backlog queue—and repeatedly retransmits $SYN\text{-}ACK$ packets according to an exponential backoff schedule. Under default Linux settings, this retention period lasts approximately 63 seconds. If spoofed requests arrive faster than expired half-open sockets are removed, the backlog queue fills completely. Once saturated, the operating system kernel discards incoming connection requests, denying access to all legitimate clients.
 
 \section{Project Objectives and Scope}
-This project was carried out under the specifications of Topic 06 for CSE 406. The primary technical objectives were:
+This project was carried out under the specifications of Topic 06 for CSE 406 \cite{buet_cse406}. The primary technical objectives were:
 \begin{enumerate}
     \item \textbf{Custom Attack Tool Implementation:} Build a standalone, high-rate TCP SYN flood injector in standard C using POSIX raw sockets (\texttt{AF\_INET}, \texttt{SOCK\_RAW}, \texttt{IPPROTO\_RAW}). Third-party attack tools (such as \texttt{hping3}, \texttt{Scapy}, or \texttt{nping}) were strictly excluded.
-    \item \textbf{Bitwise Protocol Header Serialization:} Manually construct Layer 3 (IPv4) and Layer 4 (TCP) binary headers, implement random source IP and port generation, and implement RFC 1071 16-bit one's complement checksums using RFC 793 TCP pseudo-headers.
+    \item \textbf{Bitwise Protocol Header Serialization:} Manually construct Layer 3 (IPv4) and Layer 4 (TCP) binary headers, implement random source IP and port generation, and implement RFC 1071 \cite{rfc1071} 16-bit one's complement checksums using RFC 793 \cite{rfc793} TCP pseudo-headers.
     \item \textbf{Isolated Testbed Deployment:} Build a multi-node virtual test environment comprising an Attacker Node, a Victim Web Server, a Legitimate Client, and an interconnecting virtual bridge to isolate all spoofed traffic from production networks.
     \item \textbf{Empirical Vulnerability Verification:} Experimentally record socket queue saturation, kernel drop telemetry (\texttt{ss}, \texttt{netstat}), and legitimate connection success and failure rates during attack activity.
     \item \textbf{Defensive Countermeasure Evaluation (Bonus Credit):} Implement, configure, and benchmark four defensive mechanisms: Cryptographic Stateless TCP SYN Cookies, Netfilter \texttt{iptables} ingress rate limiting, Netfilter \texttt{SYNPROXY}, and kernel parameter tuning.
@@ -209,7 +209,7 @@ The remainder of this report is organized into ten chapters and one appendix:
 \chapter{Theoretical Background \& Protocol Mechanics}
 
 \section{The TCP State Machine and Three-Way Handshake}
-Under RFC 793, TCP establishes a bidirectional byte stream between two endpoints by synchronizing initial sequence numbers:
+Under RFC 793 \cite{rfc793}, TCP establishes a bidirectional byte stream between two endpoints by synchronizing initial sequence numbers:
 
 \begin{figure}[H]
     \centering
@@ -229,12 +229,12 @@ The standard connection procedure follows three steps:
 The core weakness exploited by a SYN flood is an asymmetry in how endpoints commit memory and processing time during connection setup:
 \begin{itemize}
     \item \textbf{Client Side:} Emitting a $SYN$ packet requires preparing a 40- to 54-byte raw packet. When sent using raw sockets, the sending application does not need to allocate persistent state in kernel connection tables.
-    \item \textbf{Server Side:} Upon receiving a $SYN$, the server kernel allocates approximately 280 to 500+ bytes for a \texttt{struct request\_sock}, registers hardware timer callbacks for exponential retransmissions, records routing information, and consumes a slot in its half-open socket backlog table.
+    \item \textbf{Server Side:} Upon receiving a $SYN$, the server kernel allocates approximately 280 to 500+ bytes for a \texttt{struct request\_sock} \cite{linux_kernel}, registers hardware timer callbacks for exponential retransmissions, records routing information, and consumes a slot in its half-open socket backlog table.
 \end{itemize}
-Because the server commits substantial kernel state for every incoming $SYN$ while the sender commits none, an attacker transmitting moderate volumes of requests can rapidly exhaust the server's connection tracking capacity.
+Because the server commits substantial kernel state for every incoming $SYN$ while the sender commits none, an attacker transmitting moderate volumes of requests can rapidly exhaust the server's connection tracking capacity, causing Denial of Service as surveyed in RFC 4987 \cite{eddy2007}.
 
 \section{The Linux Half-Open Connection Architecture}
-In the Linux kernel network stack, connection requests are processed through two distinct queues:
+In the Linux kernel network stack \cite{linux_kernel}, connection requests are processed through two distinct queues:
 \begin{enumerate}
     \item \textbf{The SYN Backlog (Half-Open Queue):} Holds connection requests in the \texttt{SYN\_RCVD} state awaiting client completion. The capacity of this queue is bounded by the system setting \texttt{net.ipv4.tcp\_max\_syn\_backlog} and the backlog argument provided to the \texttt{listen()} system call.
     \item \textbf{The Accept Queue (Established Queue):} Holds fully established sockets that have completed the three-way handshake and are waiting to be retrieved by the application via \texttt{accept()}. This queue size is bounded by \texttt{net.core.somaxconn}.
@@ -293,7 +293,7 @@ To prevent spoofed IP packets from escaping onto university or local network inf
 \end{itemize}
 
 \section{Kernel Parameter Configuration}
-To evaluate baseline vulnerability and subsequent defensive remediations, the victim's kernel parameters are configured via \texttt{sysctl} as detailed in Table~\ref{tab:sysctl}.
+To evaluate baseline vulnerability and subsequent defensive remediations, the victim's kernel parameters are configured in the Linux networking subsystem \cite{linux_kernel} via \texttt{sysctl} as detailed in Table~\ref{tab:sysctl}.
 
 \begin{table}[H]
     \centering
@@ -379,7 +379,7 @@ The Layer 2 encapsulation consists of a standard 14-byte Ethernet II header:
 \end{itemize}
 
 \section{Layer 3: IPv4 Header Specification}
-The custom IPv4 header occupies 20 bytes (no IP options):
+The custom IPv4 header occupies 20 bytes (no IP options), complying with RFC 791 \cite{rfc791}:
 \begin{table}[H]
     \centering
     \small
@@ -406,7 +406,7 @@ The custom IPv4 header occupies 20 bytes (no IP options):
 \end{table}
 
 \section{Layer 4: TCP Segment Header Specification}
-The crafted TCP header occupies 20 bytes without options:
+The crafted TCP header occupies 20 bytes without options, complying with RFC 793 \cite{rfc793}:
 \begin{table}[H]
     \centering
     \small
@@ -432,7 +432,7 @@ The crafted TCP header occupies 20 bytes without options:
 \end{table}
 
 \section{TCP Pseudo-Header \& RFC 1071 Checksum Algorithm}
-The TCP checksum cannot be computed from the TCP segment alone. RFC 793 defines a 12-byte conceptual \textbf{Pseudo-Header} to verify that routing properties match transport-layer data:
+The TCP checksum cannot be computed from the TCP segment alone. RFC 793 \cite{rfc793} defines a 12-byte conceptual \textbf{Pseudo-Header} to verify that routing properties match transport-layer data:
 \begin{lstlisting}[style=customc]
 struct pseudo_header {
     uint32_t src_ip;       // Source IP from IPv4 header
@@ -443,7 +443,7 @@ struct pseudo_header {
 };
 \end{lstlisting}
 
-The checksum algorithm sums all 16-bit integers in one's complement arithmetic across the pseudo-header concatenated with the TCP header:
+The checksum algorithm sums all 16-bit integers in one's complement arithmetic as specified in RFC 1071 \cite{rfc1071} across the pseudo-header concatenated with the TCP header:
 \begin{equation}
     \text{Checksum} = \sim \left( \sum_{i=1}^{M} \text{Word}_{16}[i] \right)
 \end{equation}
@@ -462,7 +462,7 @@ Our custom tool \texttt{syn\_flood.c} is designed for maximum throughput and low
 \end{itemize}
 
 \section{Core Algorithm Breakdown}
-The core logic computes the RFC 1071 Internet Checksum across the pseudo-header and serialized TCP header:
+The core logic computes the RFC 1071 \cite{rfc1071} Internet Checksum across the pseudo-header and serialized TCP header:
 
 \begin{lstlisting}[style=customc, basicstyle=\ttfamily\scriptsize, caption={Core RFC 1071 Checksum \& Pseudo-Header Calculation Routine}]
 uint16_t calculate_checksum(uint16_t *buf, int nbytes) {
@@ -561,17 +561,17 @@ Under attack with \texttt{tcp\_syncookies=0}, legitimate client requests experie
 % =========================================================================
 % CHAPTER 8: DEFENSE MECHANISMS & EMPIRICAL COUNTERMEASURES
 % =========================================================================
-\chapter[Defense Mechanisms \& Practical Evidence (10\% Bonus)]{Defense Mechanisms \& Practical Evidence\\(10\% Project Bonus)}
+\chapter{Defense Mechanisms \& Practical Evidence}
 
-To qualify for the $10\%$ project bonus, we implemented and experimentally verified four distinct defensive layers.
+To qualify for the $10\%$ project bonus, we implemented and experimentally verified four distinct defensive layers as categorized in RFC 4987 \cite{eddy2007}.
 
 \section{Defense 1: Cryptographic Stateless TCP SYN Cookies}
 \subsection{Mathematical and Architectural Formulation}
-Invented by D. J. Bernstein, SYN Cookies alter the server's handshake behavior such that it allocates \textbf{zero kernel state in memory} upon receiving a $SYN$ segment. When the SYN backlog saturates, the server encodes all connection state cryptographically into the 32-bit Initial Sequence Number ($ISN_{\text{cookie}}$) of its $SYN\text{-}ACK$ (Figure~\ref{fig:syn_cookie_architecture}):
+Invented by D. J. Bernstein \cite{bernstein1996}, SYN Cookies alter the server's handshake behavior such that it allocates \textbf{zero kernel state in memory} upon receiving a $SYN$ segment. When the SYN backlog saturates, the server encodes all connection state cryptographically into the 32-bit Initial Sequence Number ($ISN_{\text{cookie}}$) of its $SYN\text{-}ACK$ (Figure~\ref{fig:syn_cookie_architecture}):
 \begin{equation}
     ISN_{\text{cookie}} = \mathcal{H}(\text{SrcIP}, \text{SrcPort}, \text{DstIP}, \text{DstPort}, \text{SecretKey}, \tau) + \text{MSS Index}
 \end{equation}
-where $\tau$ is a 5-bit coarse timestamp counter (incrementing every 64 seconds), $\mathcal{H}$ is a keyed cryptographic hash (SipHash in modern Linux), and the bottom 3 bits encode an index into an 8-entry Maximum Segment Size (MSS) table.
+where $\tau$ is a 5-bit coarse timestamp counter (incrementing every 64 seconds), $\mathcal{H}$ is a keyed cryptographic hash (SipHash in modern Linux \cite{linux_kernel}), and the bottom 3 bits encode an index into an 8-entry Maximum Segment Size (MSS) table.
 
 \begin{figure}[H]
     \centering
@@ -727,25 +727,25 @@ For Phase 2 (Implementation Demo and Final Report), we plan to:
 % =========================================================================
 \begin{thebibliography}{99}
     \bibitem{rfc793}
-    Postel, J. (1981). \emph{Transmission Control Protocol}. RFC 793, Internet Engineering Task Force (IETF).
+    Postel, J. (1981). \emph{Transmission Control Protocol}. RFC 793, Internet Engineering Task Force (IETF). \url{https://datatracker.ietf.org/doc/html/rfc793}
     
     \bibitem{rfc791}
-    Postel, J. (1981). \emph{Internet Protocol}. RFC 791, Internet Engineering Task Force (IETF).
+    Postel, J. (1981). \emph{Internet Protocol}. RFC 791, Internet Engineering Task Force (IETF). \url{https://datatracker.ietf.org/doc/html/rfc791}
     
     \bibitem{rfc1071}
-    Braden, R., Borman, D., \& Partridge, C. (1988). \emph{Computing the Internet Checksum}. RFC 1071, IETF.
+    Braden, R., Borman, D., \& Partridge, C. (1988). \emph{Computing the Internet Checksum}. RFC 1071, Internet Engineering Task Force (IETF). \url{https://datatracker.ietf.org/doc/html/rfc1071}
     
     \bibitem{bernstein1996}
-    Bernstein, D. J. (1996). \emph{SYN Cookies}. Available at: \url{https://cr.yp.to/syncookies.html}.
+    Bernstein, D. J. (1996). \emph{SYN Cookies}. Department of Mathematics, Statistics, and Computer Science, University of Illinois at Chicago. \url{https://cr.yp.to/syncookies.html}
     
     \bibitem{eddy2007}
-    Eddy, W. (2007). \emph{TCP SYN Flooding Attacks and Common Mitigations}. RFC 4987, IETF.
+    Eddy, W. (2007). \emph{TCP SYN Flooding Attacks and Common Mitigations}. RFC 4987, Internet Engineering Task Force (IETF). \url{https://datatracker.ietf.org/doc/html/rfc4987}
     
     \bibitem{linux_kernel}
-    Torvalds, L., et al. (2024). \emph{Linux Kernel Networking Subsystem: \texttt{net/ipv4/tcp\_input.c}}. Linux Kernel Archives.
+    Torvalds, L., et al. (2024). \emph{Linux Kernel Networking Subsystem: \texttt{net/ipv4/tcp\_input.c}}. Linux Kernel Source Tree. \url{https://github.com/torvalds/linux}
     
     \bibitem{buet_cse406}
-    Department of Computer Science and Engineering, BUET. (2026). \emph{CSE 406: Computer Security Sessional Project Guidelines}.
+    Department of Computer Science and Engineering, BUET. (2026). \emph{CSE 406: Computer Security Sessional Project Specifications and Guidelines}. Bangladesh University of Engineering and Technology.
 \end{thebibliography}
 
 % =========================================================================
