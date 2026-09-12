@@ -103,7 +103,7 @@ python3 compile_report.py
 
 ---
 
-### Defenses Implemented & Benchmarked (10% Bonus Credit)
+### Defenses Implemented & Benchmarked
 1. **Stateless Cryptographic TCP SYN Cookies (`tcp_syncookies = 1`):** Eliminates server-side half-open state allocation, achieving 90–100% client recovery under flood conditions.
 2. **Ingress Firewall Rate Limiting (`iptables -m limit`):** Drops ~84.7% of attack packets at kernel ingress, protecting socket queues.
 3. **Netfilter SYN Proxy (`SYNPROXY`):** Shields application backends behind an ingress proxy firewall.

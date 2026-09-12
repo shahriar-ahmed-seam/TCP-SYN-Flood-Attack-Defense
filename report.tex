@@ -145,7 +145,7 @@ TCP (RFC 793 \cite{rfc793}) sets up connections through a three-way handshake: t
 
 For this project, we wrote a TCP SYN flood attack tool from scratch in C using POSIX raw sockets (\texttt{SOCK\_RAW} with \texttt{IP\_HDRINCL}). We did not use any third-party tools or packet-crafting libraries, as per course policy. Instead, we built the IPv4 and TCP headers byte by byte, implemented the RFC 1071 \cite{rfc1071} checksum with TCP pseudo-headers ourselves, and ended up with an injection loop that pushes over $388{,}000$ packets per second.
 
-We tested this inside an isolated virtual network. With defenses turned off (\texttt{tcp\_syncookies=0}), the attack filled the server's backlog queue in roughly $25.6\text{ ms}$, and legitimate connections failed $100\%$ of the time. We then implemented four defenses for the bonus requirement: (1) SYN Cookies (\texttt{tcp\_syncookies=1}), which let the server avoid allocating any state for incoming SYNs and brought legitimate success rates back to $90\text{--}100\%$; (2) \texttt{iptables} rate limiting, which dropped $84.7\%$ of attack packets before they reached the socket layer; (3) Netfilter \texttt{SYNPROXY}; and (4) kernel parameter hardening via \texttt{sysctl}. We verified all of these through terminal traces, socket queue telemetry (\texttt{ss}, \texttt{netstat}), and client latency measurements.
+We tested this inside an isolated virtual network. With defenses turned off (\texttt{tcp\_syncookies=0}), the attack filled the server's backlog queue in roughly $25.6\text{ ms}$, and legitimate connections failed $100\%$ of the time. We then implemented and evaluated four defenses: (1) SYN Cookies (\texttt{tcp\_syncookies=1}), which let the server avoid allocating any state for incoming SYNs and brought legitimate success rates back to $90\text{--}100\%$; (2) \texttt{iptables} rate limiting, which dropped $84.7\%$ of attack packets before they reached the socket layer; (3) Netfilter \texttt{SYNPROXY}; and (4) kernel parameter hardening via \texttt{sysctl}. We verified all of these through terminal traces, socket queue telemetry (\texttt{ss}, \texttt{netstat}), and client latency measurements.
 \end{abstract}
 
 % Front matter lists
@@ -184,7 +184,7 @@ We carried out this project under Topic 06 of CSE 406 \cite{buet_cse406}. Our go
     \item \textbf{Handle packet construction manually:} Construct IPv4 and TCP headers at the byte level, generate random source IPs and ports, and implement the RFC 1071 \cite{rfc1071} checksum using RFC 793 \cite{rfc793} pseudo-headers.
     \item \textbf{Set up an isolated test environment:} Create a virtual network with an attacker node, a victim server, a legitimate client, and a virtual bridge---all contained so that no spoofed packets escape onto real networks.
     \item \textbf{Measure the attack's impact:} Record queue saturation, kernel drop statistics (\texttt{ss}, \texttt{netstat}), and legitimate connection success/failure rates during the flood.
-    \item \textbf{Implement and evaluate defenses (bonus):} Test four countermeasures---SYN Cookies, \texttt{iptables} rate limiting, \texttt{SYNPROXY}, and kernel parameter tuning---and measure how each one performs.
+    \item \textbf{Implement and evaluate defenses:} Test four countermeasures---SYN Cookies, \texttt{iptables} rate limiting, \texttt{SYNPROXY}, and kernel parameter tuning---and measure how each one performs.
 \end{enumerate}
 
 \section{Report Organization}
@@ -708,7 +708,7 @@ We split the work between the two of us based on who was more comfortable with w
 \section{Summary}
 We built a TCP SYN flood tool from scratch in C, as required by Topic 06. By exploiting TCP's resource asymmetry through raw socket programming, we showed that sending $388{,}000$ spoofed SYN packets per second can fill a server's backlog queue in well under a millisecond and deny service to $100\%$ of legitimate clients.
 
-More importantly, we showed that simply making the queue bigger does not solve the problem. We tested four defenses for the bonus requirement:
+More importantly, we showed that simply making the queue bigger does not solve the problem. We tested four complementary defenses:
 \begin{enumerate}
     \item \textbf{SYN Cookies} were the most effective single defense---by making the handshake stateless, they brought legitimate success rates from $0\%$ back to $90\text{--}100\%$ even during an active flood.
     \item \textbf{\texttt{iptables} rate limiting} dropped $84.7\%$ of attack packets at the kernel's firewall layer, protecting the socket queue.
