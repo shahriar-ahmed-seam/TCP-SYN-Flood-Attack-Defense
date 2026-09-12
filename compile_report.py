@@ -1,10 +1,12 @@
 import subprocess
 import sys
 import os
+import shutil
 
 def main():
     tex_file = "report.tex"
     pdf_file = "report.pdf"
+    submission_pdf = "2005093_1705083.pdf"
     
     tectonic_bin = os.path.expanduser("~/.local/bin/tectonic")
     if not os.path.exists(tectonic_bin):
@@ -15,7 +17,9 @@ def main():
     res = subprocess.run(cmd)
     if res.returncode == 0:
         print("[+] LaTeX Compilation Successful!")
-        info = subprocess.check_output(["pdfinfo", pdf_file]).decode("utf-8")
+        shutil.copy2(pdf_file, submission_pdf)
+        print(f"[+] Synced submission PDF: {submission_pdf}")
+        info = subprocess.check_output(["pdfinfo", submission_pdf]).decode("utf-8")
         print(info)
     else:
         print(f"[-] Compilation failed with code {res.returncode}")

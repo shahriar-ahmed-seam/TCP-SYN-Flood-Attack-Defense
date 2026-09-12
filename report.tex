@@ -34,7 +34,9 @@
     citecolor=linkblue,
     urlcolor=linkblue,
     pdftitle={CSE 406 Design Report: Topic 06 - TCP SYN Flood Attack and Defense},
-    pdfauthor={Shahriar Ahmed Seam, Hozifa Rahman Hamim}
+    pdfauthor={Shahriar Ahmed Seam, Hozifa Rahman Hamim},
+    plainpages=false,
+    pdfpagelabels=true
 }
 
 % Listings setup
@@ -106,6 +108,7 @@
 % COVER PAGE
 % =========================================================================
 \begin{titlepage}
+    \pagenumbering{Alph}
     \centering
     \vspace*{1.5cm}
     
@@ -145,7 +148,7 @@ TCP (RFC 793 \cite{rfc793}) sets up connections through a three-way handshake: t
 
 For this project, we wrote a TCP SYN flood attack tool from scratch in C using POSIX raw sockets (\texttt{SOCK\_RAW} with \texttt{IP\_HDRINCL}). We did not use any third-party tools or packet-crafting libraries, as per course policy. Instead, we built the IPv4 and TCP headers byte by byte, implemented the RFC 1071 \cite{rfc1071} checksum with TCP pseudo-headers ourselves, and ended up with an injection loop that pushes over $388{,}000$ packets per second.
 
-We tested this inside an isolated virtual network. With defenses turned off (\texttt{tcp\_syncookies=0}), the attack filled the server's backlog queue in roughly $25.6\text{ ms}$, and legitimate connections failed $100\%$ of the time. We then implemented and evaluated four defenses: (1) SYN Cookies (\texttt{tcp\_syncookies=1}), which let the server avoid allocating any state for incoming SYNs and brought legitimate success rates back to $90\text{--}100\%$; (2) \texttt{iptables} rate limiting, which dropped $84.7\%$ of attack packets before they reached the socket layer; (3) Netfilter \texttt{SYNPROXY}; and (4) kernel parameter hardening via \texttt{sysctl}. We verified all of these through terminal traces, socket queue telemetry (\texttt{ss}, \texttt{netstat}), and client latency measurements.
+We tested this inside an isolated virtual network. With defenses turned off (\texttt{tcp\_\-syncookies=0}), the attack filled the server's backlog queue in roughly $25.6\text{ ms}$, and legitimate connections failed $100\%$ of the time. We then implemented and evaluated four defenses: (1) SYN Cookies (\texttt{tcp\_\-syncookies=1}), which let the server avoid allocating any state for incoming SYNs and brought legitimate success rates back to $90\text{--}100\%$; (2) \texttt{iptables} rate limiting, which dropped $84.7\%$ of attack packets before they reached the socket layer; (3) Netfilter \texttt{SYNPROXY}; and (4) kernel parameter hardening via \texttt{sysctl}. We verified all of these through terminal traces, socket queue telemetry (\texttt{ss}, \texttt{netstat}), and client latency measurements.
 \end{abstract}
 
 % Front matter lists
@@ -184,7 +187,7 @@ We carried out this project under Topic 06 of CSE 406 \cite{buet_cse406}. Our go
     \item \textbf{Handle packet construction manually:} Construct IPv4 and TCP headers at the byte level, generate random source IPs and ports, and implement the RFC 1071 \cite{rfc1071} checksum using RFC 793 \cite{rfc793} pseudo-headers.
     \item \textbf{Set up an isolated test environment:} Create a virtual network with an attacker node, a victim server, a legitimate client, and a virtual bridge---all contained so that no spoofed packets escape onto real networks.
     \item \textbf{Measure the attack's impact:} Record queue saturation, kernel drop statistics (\texttt{ss}, \texttt{netstat}), and legitimate connection success/failure rates during the flood.
-    \item \textbf{Implement and evaluate defenses:} Test four countermeasures---SYN Cookies, \texttt{iptables} rate limiting, \texttt{SYNPROXY}, and kernel parameter tuning---and measure how each one performs.
+    \item \textbf{Implement and evaluate defenses:} Test four countermeasures: SYN Cookies, \texttt{iptables} rate limiting, \texttt{SYNPROXY}, and kernel parameter tuning---and measure how each one performs.
 \end{enumerate}
 
 \section{Report Organization}
@@ -457,7 +460,7 @@ To compute it, we sum every 16-bit word across the pseudo-header and TCP header 
 The attack tool is a single C file, \texttt{syn\_flood.c}, designed to maximize throughput while keeping system call overhead low. It works as follows:
 \begin{itemize}
     \item \textbf{Socket creation:} We open a raw socket with \texttt{socket(AF\_INET, SOCK\_RAW, IPPROTO\_RAW)}.
-    \item \textbf{Header inclusion:} We set \texttt{IP\_HDRINCL} via \texttt{setsockopt()} so the kernel accepts our custom IP headers without modifying them.
+    \item \textbf{Header inclusion:} We enable \texttt{IP\_HDRINCL} via \texttt{setsockopt()} so the kernel accepts our custom IP headers without modifying them.
     \item \textbf{Randomization:} Inside the send loop, we regenerate the source IP address and source port for every packet to maximize the number of distinct half-open entries on the victim.
 \end{itemize}
 
@@ -726,6 +729,9 @@ For Phase 2 (demo and final report), we plan to:
 % =========================================================================
 % REFERENCES
 % =========================================================================
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{Bibliography}
 \begin{thebibliography}{99}
     \bibitem{rfc793}
     Postel, J. (1981). \emph{Transmission Control Protocol}. RFC 793, Internet Engineering Task Force (IETF). \url{https://datatracker.ietf.org/doc/html/rfc793}
@@ -756,7 +762,7 @@ For Phase 2 (demo and final report), we plan to:
 \chapter{Repository \& Reproduction}
 
 \section{GitHub Repository}
-All project files---the attack tool (\texttt{syn\_flood.c}), the experiment harness (\texttt{run\_live\_experiments.py}), the interactive simulator (\texttt{simulator/}), the LaTeX source, and the figures---are in our repository:
+All project files---the attack tool (\texttt{syn\_flood.c}), the experiment harness (\texttt{run\_\-live\_\-experiments.py}), the interactive simulator (\texttt{simulator/}), the LaTeX source, and the figures---are in our repository:
 
 \begin{center}
     \fbox{\parbox{0.9\textwidth}{\centering \textbf{GitHub Repository Link:}\\
