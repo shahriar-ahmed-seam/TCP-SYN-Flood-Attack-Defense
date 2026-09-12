@@ -206,7 +206,7 @@ The rest of this report is structured as follows:
 % =========================================================================
 % CHAPTER 2: THEORETICAL BACKGROUND
 % =========================================================================
-\chapter{Theoretical Background \& Protocol Mechanics}
+\chapter{Background \& TCP Protocol Mechanics}
 
 \section{The TCP State Machine and Three-Way Handshake}
 TCP establishes connections by exchanging sequence numbers through a three-way handshake, as defined in RFC 793 \cite{rfc793}. Figure~\ref{fig:timing_diagrams} shows how this works under normal conditions versus during a SYN flood.
@@ -214,7 +214,7 @@ TCP establishes connections by exchanging sequence numbers through a three-way h
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.70\textwidth]{figures/timing_diagrams.png}
-    \caption{Protocol Sequence Analysis: (A) Baseline Three-Way Handshake versus (B) SYN Flood Denial of Service Saturation.}
+    \caption{Normal three-way handshake (A) compared to a SYN flood attack (B).}
     \label{fig:timing_diagrams}
 \end{figure}
 
@@ -233,7 +233,7 @@ The fundamental weakness that a SYN flood exploits is the imbalance in how much 
 \end{itemize}
 So the server is doing far more work per packet than the sender. An attacker sending even a moderate volume of spoofed SYNs can fill up the server's connection tracking capacity and cause a denial of service, as discussed in RFC 4987 \cite{eddy2007}.
 
-\section{The Linux Half-Open Connection Architecture}
+\section{Half-Open Connection Handling in Linux}
 In the Linux networking stack \cite{linux_kernel}, incoming connections pass through two separate queues:
 \begin{enumerate}
     \item \textbf{SYN Backlog (Half-Open Queue):} This holds connections stuck in \texttt{SYN\_RCVD}---they have received a SYN and sent a SYN-ACK, but the final ACK has not arrived yet. Its size is controlled by \texttt{net.ipv4.tcp\_max\_syn\_backlog} and the backlog argument to \texttt{listen()}.
@@ -242,7 +242,7 @@ In the Linux networking stack \cite{linux_kernel}, incoming connections pass thr
 
 
 
-\section{IP Address Spoofing Mechanics}
+\section{How IP Spoofing Works}
 There is a subtlety that makes spoofing essential for a sustained attack. If the attacker uses their real IP address, the victim's SYN-ACK responses will arrive back at the attacker's machine. The attacker's OS kernel, having no record of those connections, will immediately send TCP Reset (RST) packets---which clears the victim's backlog slots right away and defeats the whole point of the flood.
 
 To keep those backlog slots occupied, the attack tool needs to use \textbf{IP address spoofing}:
@@ -262,17 +262,17 @@ Since we are generating packets with spoofed IP addresses, we needed to make sur
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.82\textwidth]{figures/network_topology.png}
-    \caption{Architectural Block Diagram of the Isolated Virtual Testbed Network.}
+    \caption{Our virtual testbed: three nodes connected through a Linux bridge.}
     \label{fig:network_topology}
 \end{figure}
 
 \begin{table}[H]
     \centering
-    \caption{Detailed Node Specifications of the Testbed Environment}
+    \caption{Node setup in our virtual testbed}
     \label{tab:nodes}
     \begin{tabularx}{\textwidth}{@{}l l l >{\raggedright\arraybackslash}X@{}}
         \toprule
-        \textbf{Node Hostname} & \textbf{Assigned IPv4} & \textbf{Operational Role} & \textbf{Software Stack \& Privileges} \\
+        \textbf{Node Hostname} & \textbf{Assigned IPv4} & \textbf{Role} & \textbf{Software / Permissions} \\
         \midrule
         \texttt{attacker\_node} & \texttt{192.168.10.2} & Attack Injector & Custom C binary, POSIX Raw Sockets, \texttt{CAP\_NET\_RAW} \\
         \texttt{victim\_server} & \texttt{192.168.10.10} & Target TCP Service & Python/Nginx HTTP (:8080), \texttt{CAP\_NET\_ADMIN} \\
@@ -285,23 +285,23 @@ Since we are generating packets with spoofed IP addresses, we needed to make sur
 \vspace{0.2cm}
 \noindent Everything ran on a single physical machine with an Intel Core i7 processor, 16\,GB of RAM, running 64-bit Ubuntu 24.04 LTS. The network namespaces provide the isolation; no separate VMs were needed.
 
-\section{Component Roles and Capabilities}
+\section{Node Roles}
 \begin{itemize}
     \item \textbf{Attacker Node (\texttt{192.168.10.2}):} This runs our compiled C binary. It has \texttt{CAP\_NET\_RAW}, which lets it inject packets with custom IP and TCP headers and randomized source addresses.
     \item \textbf{Victim Server (\texttt{192.168.10.10}):} Hosts a simple HTTP service on port 8080. For the baseline vulnerability tests, we turned off SYN Cookies (\texttt{tcp\_syncookies=0}) and set the backlog to either $16$ or $128$ slots so we could observe saturation clearly.
     \item \textbf{Legitimate Client (\texttt{192.168.10.3}):} Simulates a normal user by attempting TCP connections at regular intervals. It logs connection latency and timeouts (with a configurable window of $500\text{--}2000\text{ ms}$).
 \end{itemize}
 
-\section{Kernel Parameter Configuration}
+\section{Kernel Parameters}
 To get clean baseline measurements and then test defenses, we needed to control several kernel parameters on the victim node. Table~\ref{tab:sysctl} shows the settings we used for the baseline (vulnerable) and hardened configurations, tuned via \texttt{sysctl} as described in the Linux networking documentation \cite{linux_kernel}.
 
 \begin{table}[H]
     \centering
-    \caption{Kernel Parameter Tuning for Baseline and Hardened Environments}
+    \caption{Kernel parameters we tuned for baseline and hardened tests}
     \label{tab:sysctl}
     \begin{tabularx}{\textwidth}{@{}l c c >{\raggedright\arraybackslash}X@{}}
         \toprule
-        \textbf{Sysctl Parameter} & \textbf{Baseline} & \textbf{Hardened} & \textbf{Functional Impact} \\
+        \textbf{Sysctl Parameter} & \textbf{Baseline} & \textbf{Hardened} & \textbf{What It Controls} \\
         \midrule
         \texttt{net.ipv4.tcp\_syncookies} & \texttt{0} & \texttt{1} & Toggles cryptographic stateless handshake \\
         \texttt{net.ipv4.tcp\_max\_syn\_backlog} & \texttt{16 / 128} & \texttt{2048} & Capacity of half-open socket queue \\
@@ -316,12 +316,12 @@ To get clean baseline measurements and then test defenses, we needed to control 
 % =========================================================================
 \chapter{Timing Diagrams \& Mathematical Model}
 
-\section{Protocol State Transitions}
+\section{State Transitions}
 Under normal conditions (Figure~\ref{fig:timing_diagrams}A), a connection moves from \texttt{SYN\_RCVD} to \texttt{ESTABLISHED} within a single round trip, which in our local virtual environment takes well under $1\text{ ms}$.
 
 During an attack (Figure~\ref{fig:timing_diagrams}B), every spoofed SYN pushes the server into \texttt{SYN\_RCVD} for that connection. Since no ACK ever comes back, the entry stays in the backlog through multiple retransmission cycles until the timer finally gives up.
 
-\section{Mathematical Saturation Derivation}
+\section{Queue Saturation Model}
 Let $B$ be the size of the victim's SYN backlog ($B = 16$ or $B = 128$ in our tests), and $N_{retries}$ the value of \texttt{net.ipv4.tcp\_synack\_retries}. When a spoofed SYN arrives, the server retransmits SYN-ACKs at exponentially increasing intervals:
 \begin{equation}
     t_k = 2^k \cdot t_{\text{base}}, \quad k \in \{0, 1, \dots, N_{retries}-1\}
@@ -366,29 +366,29 @@ With \texttt{tcp\_syncookies=0}, the kernel simply drops the packet. At that poi
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{figures/packet_structure.png}
-    \caption{Bitwise Header Layout of Injected IPv4 and TCP Packets.}
+    \caption{Layout of the IPv4 and TCP headers we build for each packet.}
     \label{fig:packet_structure}
 \end{figure}
 
-\section{Layer 2: Ethernet II Frame Format}
-At the data link layer, each packet is wrapped in a standard 14-byte Ethernet II header:
+\section{Layer 2: Ethernet Frame}
+Each injected packet sits inside a standard 14-byte Ethernet II header:
 \begin{itemize}
     \item \textbf{Destination MAC (6 bytes):} The MAC address of the virtual gateway or victim interface.
     \item \textbf{Source MAC (6 bytes):} The attacker's network interface MAC.
     \item \textbf{EtherType (2 bytes):} Set to \texttt{0x0800} to indicate IPv4.
 \end{itemize}
 
-\section{Layer 3: IPv4 Header Specification}
+\section{Layer 3: IPv4 Header}
 We construct a 20-byte IPv4 header (no options) following RFC 791 \cite{rfc791}. Table~\ref{tab:ipv4_fields} shows each field and what we set it to:
 \begin{table}[H]
     \centering
     \small
     \renewcommand{\arraystretch}{0.88}
-    \caption{Bitwise IPv4 Header Field Specifications}
+    \caption{IPv4 header fields and the values we set}
     \label{tab:ipv4_fields}
     \begin{tabularx}{\textwidth}{@{}l c c >{\raggedright\arraybackslash}X@{}}
         \toprule
-        \textbf{Field} & \textbf{Bit Length} & \textbf{Value Assigned} & \textbf{Engineering Purpose} \\
+        \textbf{Field} & \textbf{Bit Length} & \textbf{Value Assigned} & \textbf{Purpose} \\
         \midrule
         Version & 4 & \texttt{4} & IPv4 protocol specification \\
         IHL & 4 & \texttt{5} & 20 bytes header length ($5 \times 32$ bits) \\
@@ -405,17 +405,17 @@ We construct a 20-byte IPv4 header (no options) following RFC 791 \cite{rfc791}.
     \end{tabularx}
 \end{table}
 
-\section{Layer 4: TCP Segment Header Specification}
+\section{Layer 4: TCP Header}
 The TCP header is also 20 bytes (no options), following RFC 793 \cite{rfc793}:
 \begin{table}[H]
     \centering
     \small
     \renewcommand{\arraystretch}{0.88}
-    \caption{Bitwise TCP Header Field Specifications}
+    \caption{TCP header fields and the values we set}
     \label{tab:tcp_fields}
     \begin{tabularx}{\textwidth}{@{}l c c >{\raggedright\arraybackslash}X@{}}
         \toprule
-        \textbf{Field} & \textbf{Bit Length} & \textbf{Value Assigned} & \textbf{Engineering Purpose} \\
+        \textbf{Field} & \textbf{Bit Length} & \textbf{Value Assigned} & \textbf{Purpose} \\
         \midrule
         \textbf{Source Port} & 16 & \textbf{Random (1024--65535)} & Diversifies TCP 4-tuple connections \\
         Destination Port & 16 & \texttt{8080} & Listening port of victim HTTP service \\
@@ -431,7 +431,7 @@ The TCP header is also 20 bytes (no options), following RFC 793 \cite{rfc793}:
     \end{tabularx}
 \end{table}
 
-\section{TCP Pseudo-Header \& RFC 1071 Checksum Algorithm}
+\section{Pseudo-Header \& Checksum Calculation}
 You cannot compute the TCP checksum from the TCP segment alone. RFC 793 \cite{rfc793} requires a 12-byte \textbf{Pseudo-Header} that ties the transport-layer checksum to the IP-layer routing information:
 \begin{lstlisting}[style=customc]
 struct pseudo_header {
@@ -443,7 +443,7 @@ struct pseudo_header {
 };
 \end{lstlisting}
 
-The checksum itself is computed by summing all 16-bit words in one's complement arithmetic (RFC 1071 \cite{rfc1071}) over the pseudo-header concatenated with the TCP header:
+To compute it, we sum every 16-bit word across the pseudo-header and TCP header in one's complement arithmetic (RFC 1071 \cite{rfc1071}):
 \begin{equation}
     \text{Checksum} = \sim \left( \sum_{i=1}^{M} \text{Word}_{16}[i] \right)
 \end{equation}
@@ -453,7 +453,7 @@ The checksum itself is computed by summing all 16-bit words in one's complement 
 % =========================================================================
 \chapter{Attack Tool Implementation}
 
-\section{Architecture of \texttt{syn\_flood.c}}
+\section{How \texttt{syn\_flood.c} Works}
 The attack tool is a single C file, \texttt{syn\_flood.c}, designed to maximize throughput while keeping system call overhead low. It works as follows:
 \begin{itemize}
     \item \textbf{Socket creation:} We open a raw socket with \texttt{socket(AF\_INET, SOCK\_RAW, IPPROTO\_RAW)}.
@@ -461,10 +461,10 @@ The attack tool is a single C file, \texttt{syn\_flood.c}, designed to maximize 
     \item \textbf{Randomization:} Inside the send loop, we regenerate the source IP address and source port for every packet to maximize the number of distinct half-open entries on the victim.
 \end{itemize}
 
-\section{Core Algorithm Breakdown}
+\section{Checksum Implementation}
 The most important piece is the checksum calculation. Here is the RFC 1071 \cite{rfc1071} Internet Checksum routine and the function that wraps it with the TCP pseudo-header:
 
-\begin{lstlisting}[style=customc, basicstyle=\ttfamily\scriptsize, caption={Core RFC 1071 Checksum \& Pseudo-Header Calculation Routine}]
+\begin{lstlisting}[style=customc, basicstyle=\ttfamily\scriptsize, caption={Our checksum routine (RFC 1071) with the TCP pseudo-header}]
 uint16_t calculate_checksum(uint16_t *buf, int nbytes) {
     uint32_t sum = 0;
     uint16_t oddbyte = 0;
@@ -496,15 +496,15 @@ uint16_t compute_tcp_checksum(struct iphdr *iph, struct tcphdr *tcph) {
 }
 \end{lstlisting}
 
-\section{Source Code Repository Access}
+\section{Source Code}
 The full source code, build scripts, and test harnesses are available in our GitHub repository: \url{https://github.com/shahriar-ahmed-seam/TCP-SYN-Flood-Attack-Defense}.
 
 % =========================================================================
 % CHAPTER 7: EMPIRICAL ATTACK DEMONSTRATION
 % =========================================================================
-\chapter{Empirical Attack Demonstration \& Verification}
+\chapter{Attack Results \& Verification}
 
-\section{Experimental Methodology}
+\section{Test Methodology}
 We ran the attack tool inside our isolated testbed against the victim's HTTP service and checked three things:
 \begin{enumerate}
     \item Socket state distribution, using \texttt{ss -tan state syn-recv}.
@@ -512,16 +512,16 @@ We ran the attack tool inside our isolated testbed against the victim's HTTP ser
     \item Whether legitimate clients could still connect, and how long it took.
 \end{enumerate}
 
-\section{Empirical Observations}
+\section{Observations}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.82\textwidth]{figures/empirical_results.png}
-    \caption[Empirical Experimental Results across Baseline, Attack, and Defense Phases]{Empirical Experimental Results: (Left) Legitimate Client Handshake Latency across baseline, attack, and defense phases; (Right) Netfilter Ingress Packet Distribution under Rate Limiting.}
+    \caption[Results across baseline, attack, and defense phases]{Experimental results. Left: handshake latency across baseline, attack, and defense. Right: packet distribution under iptables rate limiting.}
     \label{fig:empirical_results}
 \end{figure}
 
-\subsection{Vector 1: Backlog Saturation}
+\subsection{Backlog Saturation}
 Before launching the attack, the victim had zero sockets in \texttt{SYN\_RECV}. Within about $5\text{ ms}$ of starting \texttt{syn\_flood}, the backlog was completely full:
 \begin{lstlisting}[style=terminal]
 $ ss -tan state syn-recv
@@ -535,14 +535,14 @@ Recv-Q Send-Q Local Address:Port   Peer Address:Port
 Total Sockets in SYN_RECV: 16 (100% Backlog Saturated)
 \end{lstlisting}
 
-\subsection{Vector 2: Legitimate Client Denial of Service}
+\subsection{Legitimate Client Denial}
 We then tried connecting 10 times from the legitimate client node (Table~\ref{tab:client_results}).
 
 % VERIFY: Backlog saturation occurred within 5 ms, whereas full client starvation timeout was measured across the 25.6 ms probing window.
 
 \begin{table}[H]
     \centering
-    \caption{Legitimate Client Probing Results across Experimental Phases}
+    \caption{Client connection results in each test phase}
     \label{tab:client_results}
     \begin{tabularx}{\textwidth}{@{}p{6.8cm} c c c Y@{}}
         \toprule
@@ -561,11 +561,11 @@ With \texttt{tcp\_syncookies=0} and the attack running, every single connection 
 % =========================================================================
 % CHAPTER 8: DEFENSE MECHANISMS & EMPIRICAL COUNTERMEASURES
 % =========================================================================
-\chapter{Defense Mechanisms \& Practical Evidence}
+\chapter{Defense Mechanisms \& Results}
 
-We implemented four defenses as part of the $10\%$ bonus requirement, following the categories laid out in RFC 4987 \cite{eddy2007}.
+We tested four defenses for the $10\%$ bonus, loosely following the categories in RFC 4987 \cite{eddy2007}.
 
-\section{Defense 1: Cryptographic Stateless TCP SYN Cookies}
+\section{Defense 1: SYN Cookies}
 \subsection{How SYN Cookies Work}
 SYN Cookies, originally proposed by D. J. Bernstein \cite{bernstein1996}, let the server respond to SYN packets \textbf{without allocating any kernel memory at all}. The idea is to encode the connection state into the 32-bit Initial Sequence Number ($ISN_{\text{cookie}}$) of the SYN-ACK itself (see Figure~\ref{fig:syn_cookie_architecture}):
 \begin{equation}
@@ -576,14 +576,14 @@ Here $\tau$ is a 5-bit coarse timestamp that increments every 64 seconds, $\math
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.82\textwidth]{figures/syn_cookie_architecture.png}
-    \caption[Bitwise Allocation of the Cryptographic Initial Sequence Number]{Bitwise Allocation of the 32-Bit Cryptographic Initial Sequence Number ($ISN_{\text{cookie}}$) and Stateless Handshake Sequence.}
+    \caption[SYN cookie ISN layout]{How the 32-bit SYN cookie ISN is packed, and the stateless handshake flow.}
     \label{fig:syn_cookie_architecture}
 \end{figure}
 
-\subsection{Validation Protocol}
+\subsection{Cookie Validation}
 When a real client completes the handshake by sending $ACK = ISN_{\text{cookie}} + 1$, the server subtracts 1, recomputes the expected hash using its secret key and the timestamp $\tau$, and checks whether it matches. Only after validation does the server allocate memory for the socket. Spoofed SYNs never produce a valid ACK, so they consume \textbf{zero memory}.
 
-\subsection{Empirical Validation}
+\subsection{Results}
 We turned on SYN Cookies (\texttt{net.ipv4.tcp\_syncookies=1}) and ran the same flood. The results (Table~\ref{tab:client_results} and Figure~\ref{fig:empirical_results}) were dramatic:
 \begin{itemize}
     \item Legitimate success rate went from \textbf{0\% back up to 90--100\%}.
@@ -591,7 +591,7 @@ We turned on SYN Cookies (\texttt{net.ipv4.tcp\_syncookies=1}) and ran the same 
     \item The kernel stayed stable with no sign of memory exhaustion.
 \end{itemize}
 
-\section{Defense 2: Netfilter Ingress Rate Limiting via \texttt{iptables}}
+\section{Defense 2: Rate Limiting (\texttt{iptables})}
 We also set up firewall-level rate limiting using the Netfilter \texttt{limit} module:
 \begin{lstlisting}[style=terminal]
 # Accept up to 20 new SYNs/second with a burst buffer of 40 packets
@@ -599,8 +599,8 @@ iptables -A INPUT -p tcp --dport 8080 --syn -m limit --limit 20/s --limit-burst 
 iptables -A INPUT -p tcp --dport 8080 --syn -j DROP
 \end{lstlisting}
 
-\subsection{Empirical Measurement}
-During a 300-packet burst, we captured the Netfilter counters in real time:
+\subsection{Measured Impact}
+During a burst of 300 packets, we checked the Netfilter counters:
 \begin{lstlisting}[style=terminal]
 Chain INPUT (policy ACCEPT 4 packets, 388 bytes)
  pkts bytes target  prot opt in out source    destination
@@ -609,7 +609,7 @@ Chain INPUT (policy ACCEPT 4 packets, 388 bytes)
 \end{lstlisting}
 As shown in Figure~\ref{fig:empirical_results}(Right), \textbf{254 out of 300 packets (84.7\%) were dropped at the firewall} before reaching the socket layer. The backlog only reached 6 slots.
 
-\section{Defense 3: Netfilter SYN Proxy Architecture (\texttt{SYNPROXY})}
+\section{Defense 3: SYN Proxy (\texttt{SYNPROXY})}
 The Netfilter \texttt{SYNPROXY} target goes a step further: the firewall itself completes the TCP handshake on behalf of the server, using its own SYN cookie mechanism. Only after a client proves it is real (by sending back a valid ACK) does the proxy open an actual connection to the backend. Spoofed SYNs never make it past the firewall.
 
 \section{Defense 4: Kernel Parameter Hardening}
@@ -622,14 +622,14 @@ Two simple \texttt{sysctl} changes also help:
 % =========================================================================
 % CHAPTER 9: COMPARATIVE ANALYSIS & DISCUSSION
 % =========================================================================
-\chapter{Comparative Analysis \& Discussion}
+\chapter{Comparison \& Discussion}
 
-\section{Comparative Evaluation Matrix}
+\section{Defense Comparison}
 Table~\ref{tab:comparison} puts the four defenses side by side.
 
 \begin{table}[H]
     \centering
-    \caption{Comparative Security and Availability Evaluation Matrix}
+    \caption{Side-by-side comparison of the four defenses}
     \label{tab:comparison}
     \begin{tabularx}{\textwidth}{@{}p{3.8cm} Y Y Y Y@{}}
         \toprule
@@ -644,7 +644,7 @@ Table~\ref{tab:comparison} puts the four defenses side by side.
     \end{tabularx}
 \end{table}
 
-\section{Trade-Off Analysis of Defenses}
+\section{Trade-Offs}
 SYN Cookies are effective, but they come with some trade-offs:
 \begin{enumerate}
     \item \textbf{Loss of TCP options:} Since all the connection state has to fit inside a 32-bit sequence number, there is no room for advanced TCP features like large window scaling or SACK. These can be recovered if both sides support TCP Timestamps (RFC 1323), which provide extra bits to carry the missing state.
@@ -656,20 +656,20 @@ Firewall rate limiting protects server memory, but it has a different problem: i
 % =========================================================================
 % CHAPTER 10: PROJECT EXECUTION
 % =========================================================================
-\chapter{Project Execution \& Implementation Phases}
+\chapter{Project Execution \& Work Division}
 
-\section{Module Breakdown and Milestones}
+\section{Work Distribution}
 We split the work between the two of us based on who was more comfortable with what. Table~\ref{tab:contributions} shows who handled which parts:
 
 \begin{table}[H]
     \centering
     \small
     \renewcommand{\arraystretch}{0.88}
-    \caption{Group Technical Modules and Work Distribution}
+    \caption{How we divided the work}
     \label{tab:contributions}
     \begin{tabularx}{\textwidth}{@{}p{4.2cm} p{2.8cm} >{\raggedright\arraybackslash}X@{}}
         \toprule
-        \textbf{Module \& Assigned Lead} & \textbf{Technology} & \textbf{Specific Technical Deliverables} \\
+        \textbf{Module / Lead} & \textbf{Technology} & \textbf{What We Built} \\
         \midrule
         \textbf{Attack Engine}\newline {\small Shahriar (2005093)} & C Raw Sockets & 
         $\bullet$ Set up the raw socket (\texttt{AF\_INET}, \texttt{SOCK\_RAW}) and \texttt{IP\_HDRINCL}.\newline
@@ -705,7 +705,7 @@ We split the work between the two of us based on who was more comfortable with w
 % =========================================================================
 \chapter{Conclusion \& Future Work}
 
-\section{Summary of Findings}
+\section{Summary}
 We built a TCP SYN flood tool from scratch in C, as required by Topic 06. By exploiting TCP's resource asymmetry through raw socket programming, we showed that sending $388{,}000$ spoofed SYN packets per second can fill a server's backlog queue in well under a millisecond and deny service to $100\%$ of legitimate clients.
 
 More importantly, we showed that simply making the queue bigger does not solve the problem. We tested four defenses for the bonus requirement:
@@ -753,9 +753,9 @@ For Phase 2 (demo and final report), we plan to:
 % APPENDIX: REPOSITORY DETAILS
 % =========================================================================
 \appendix
-\chapter{Project Repository \& Artifacts}
+\chapter{Repository \& Reproduction}
 
-\section{GitHub Source Code Repository}
+\section{GitHub Repository}
 All project files---the attack tool (\texttt{syn\_flood.c}), the experiment harness (\texttt{run\_live\_experiments.py}), the interactive simulator (\texttt{simulator/}), the LaTeX source, and the figures---are in our repository:
 
 \begin{center}
@@ -763,8 +763,8 @@ All project files---the attack tool (\texttt{syn\_flood.c}), the experiment harn
     \url{https://github.com/shahriar-ahmed-seam/TCP-SYN-Flood-Attack-Defense}}}
 \end{center}
 
-\section{Repository Directory Layout}
-\begin{lstlisting}[style=customc, caption={Project File and Directory Layout}]
+\section{Directory Structure}
+\begin{lstlisting}[style=customc, caption={Repository layout}]
 .
 |-- syn_flood.c             # Custom C raw socket packet generation engine
 |-- syn_flood               # Compiled binary executable (GCC -O2)
@@ -786,7 +786,7 @@ All project files---the attack tool (\texttt{syn\_flood.c}), the experiment harn
 \-- README.md               # Setup and reproduction instructions
 \end{lstlisting}
 
-\section{Compilation and Reproduction Instructions}
+\section{Reproducing Our Results}
 To reproduce our results:
 \begin{lstlisting}[style=terminal]
 # Clone repository
